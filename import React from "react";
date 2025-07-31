@@ -1,0 +1,15 @@
+import React from "react";
+import { useAuth } from "../auth/AuthContext";
+
+function ClipManager() {
+  const { user } = useAuth();
+
+  return (
+    <div>
+      <h2>Clip Manager</h2>
+      {user ? <p>Welcome, {user.name}!</p> : <p>Please log in.</p>}
+    </div>
+  );
+}
+
+export default ClipManager;
