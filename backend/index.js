@@ -8,6 +8,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const ffmpeg = require('fluent-ffmpeg');
 const app = express();
+const authRoutes = require('./src/routes/auth');
 
 const PORT = 5050;
 const JWT_SECRET = 'supersecretkey';
@@ -37,7 +38,7 @@ db.serialize(() => {
   `);
 });
 
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 // Log every request
@@ -72,36 +73,6 @@ function authMiddleware(req, res, next) {
     res.status(401).json({ message: 'Invalid token' });
   }
 }
-
-// Register endpoint
-app.post('/api/register', async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
-
-  db.get('SELECT * FROM users WHERE username = ?', [username], async (err, row) => {
-    if (row) return res.status(409).json({ error: 'User already exists' });
-    const hash = await bcrypt.hash(password, 10);
-    db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash], function (err) {
-      if (err) return res.status(500).json({ error: 'Database error' });
-      res.json({ success: true, userId: this.lastID });
-    });
-  });
-});
-
-// Login endpoint
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
-
-  db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ error: 'Invalid credentials' });
-
-    const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token });
-  });
-});
 
 // File upload endpoint (JWT protected)
 app.post('/api/upload', authMiddleware, upload.single('video'), (req, res) => {
@@ -170,6 +141,36 @@ app.post('/api/change-password', authMiddleware, async (req, res) => {
   db.run('UPDATE users SET password = ? WHERE id = ?', [hash, req.user.userId], function (err) {
     if (err) return res.status(500).json({ error: "DB error" });
     res.json({ success: true });
+  });
+});
+
+// Register endpoint
+app.post('/api/register', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
+
+  db.get('SELECT * FROM users WHERE username = ?', [username], async (err, row) => {
+    if (row) return res.status(409).json({ error: 'User already exists' });
+    const hash = await bcrypt.hash(password, 10);
+    db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hash], function (err) {
+      if (err) return res.status(500).json({ error: 'Database error' });
+      res.json({ success: true, userId: this.lastID });
+    });
+  });
+});
+
+// Login endpoint
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
+
+  db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token });
   });
 });
 

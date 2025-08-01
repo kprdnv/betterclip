@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const API_URL = "http://localhost:5050";
-
+const API_URL = "https://betterclip-backend.onrender.com";
 function App() {
   const [backendMessage, setBackendMessage] = useState("");
   const [files, setFiles] = useState([]);
